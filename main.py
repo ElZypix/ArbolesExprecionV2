@@ -62,6 +62,26 @@ class CompiladorApp(QtWidgets.QMainWindow):
         self.pushButton_10.clicked.connect(lambda: self.iniciar_animacion_m3("Infija"))
         self.pushButton_11.clicked.connect(lambda: self.iniciar_animacion_m3("Postfija"))
 
+        # ==========================================
+        # VARIABLES Y CONEXIONES MÓDULO 4
+        # ==========================================
+        self.arbol_m4 = None
+        self.nodo_sel_m4 = None
+        self.mapa_items_m4 = {}
+        self.btn_ANotacion.clicked.connect(lambda: self.stackedWidget.setCurrentIndex(3))
+
+        # Botones de creación del árbol
+        self.btn_AgregarANota.clicked.connect(self.agregar_nodo_m4)
+        self.btn_EliminarANota.clicked.connect(self.eliminar_nodo_m4)
+        self.btn_LimpiarANota.clicked.connect(self.limpiar_arbol_m4)
+
+        # Input de validación
+        self.int_NodoANota.textChanged.connect(self.validar_input_m4)
+        self.int_NodoANota.returnPressed.connect(self.agregar_nodo_m4)
+        self.btn_infijaANota.clicked.connect(lambda: self.iniciar_animacion_m4("Infija"))
+        self.btn_postfijaANota.clicked.connect(lambda: self.iniciar_animacion_m4("Postfija"))
+        self.btn_PrefijaANota.clicked.connect(lambda: self.iniciar_animacion_m4("Prefija"))
+
     def ejecutar_modulo_1(self, ecuacion):
         """Lógica estable del Módulo 1: Expresión -> Árbol + Resolución Paso a Paso"""
         texto_limpio = ecuacion.strip()
@@ -436,89 +456,59 @@ class CompiladorApp(QtWidgets.QMainWindow):
     # ==========================================
     # ALGORITMOS CON REGISTRO DE PROCEDIMIENTOS
     # ==========================================
-    def generar_frames_postfija(self, tokens):
-        frames = []
-        entrada = list(tokens)
-        pila = []
-        salida = []
-        log = "Iniciando Shunting Yard (Infija -> Postfija)\n"
 
-        def tomar_foto(mensaje=""):
-            nonlocal log
-            if mensaje: log += " > " + mensaje + "\n"
-            frames.append({"entrada": list(entrada), "pila_operadores": list(pila), "salida": list(salida), "log": log})
-
-        tomar_foto()
-
-        for token in tokens:
-            entrada.pop(0)
-            if self.calc.es_operando(token):
-                salida.append(token)
-                tomar_foto(f"El operando '{token}' pasa directo a la salida.")
-            elif token == '(':
-                pila.append(token)
-                tomar_foto("Se abre paréntesis, entra a la pila.")
-            elif token == ')':
-                while pila and pila[-1] != '(':
-                    salida.append(pila.pop())
-                    tomar_foto("Se vacía la pila hasta el paréntesis.")
-                if pila: pila.pop()
-            else:
-                while (pila and pila[-1] != '(' and
-                       self.calc.preferencia.get(pila[-1], 0) >= self.calc.preferencia.get(token, 0)):
-                    salida.append(pila.pop())
-                    tomar_foto(f"Sale operador por jerarquía.")
-                pila.append(token)
-                tomar_foto(f"Operador '{token}' entra a la pila.")
-
-        while pila:
-            salida.append(pila.pop())
-            tomar_foto("Vaciando restos de la pila.")
-
-        return frames
 
     def generar_frames_prefija(self, tokens):
         frames = []
-        entrada = list(tokens[::-1])
-        for i in range(len(entrada)):
-            if entrada[i] == '(': entrada[i] = ')'
-            elif entrada[i] == ')': entrada[i] = '('
+        # Invertimos y cambiamos paréntesis para el algoritmo de prefija
+        entrada_rev = list(tokens[::-1])
+        for i in range(len(entrada_rev)):
+            if entrada_rev[i] == '(': entrada_rev[i] = ')'
+            elif entrada_rev[i] == ')': entrada_rev[i] = '('
 
         pila = []
         salida = []
-        log = "Iniciando Shunting Yard Inverso (Infija -> Prefija)\nSe lee de Derecha a Izquierda.\n"
+        log = "Iniciando Infija -> Prefija (Lectura inversa)\n"
 
         def tomar_foto(mensaje=""):
             nonlocal log
-            if mensaje: log += " > " + mensaje + "\n"
+            if mensaje: log += f" > {mensaje}\n"
+            # Al dibujar invertimos la salida para que se vea la prefija real
             frames.append({
-                "entrada": list(entrada[::-1]),
+                "entrada": list(entrada_rev[::-1]),
                 "pila_operadores": list(pila),
                 "salida": list(salida[::-1]),
                 "log": log
             })
 
         tomar_foto()
-
-        for token in list(entrada):
-            entrada.pop(0)
+        entrada_trabajo = list(entrada_rev)
+        for token in entrada_trabajo:
+            entrada_rev.pop(0)
             if self.calc.es_operando(token):
                 salida.append(token)
-                tomar_foto(f"Operando '{token}' a la salida.")
+                tomar_foto(f"Operando '{token}' a salida.")
             elif token == '(':
                 pila.append(token)
+                tomar_foto("Entra '(' a la pila.")
             elif token == ')':
-                while pila and pila[-1] != '(': salida.append(pila.pop())
-                if pila: pila.pop()
+                while pila and pila[-1] != '(':
+                    salida.append(pila.pop())
+                    tomar_foto("Vaciando hasta encontrar '('...")
+                if pila and pila[-1] == '(':
+                    pila.pop() # Saca el (
+                    tomar_foto("Se elimina '(' de la pila.") # ¡FOTO PARA LIMPIAR EL ( !
             else:
                 while (pila and pila[-1] != '(' and
                        self.calc.preferencia.get(pila[-1], 0) > self.calc.preferencia.get(token, 0)):
                     salida.append(pila.pop())
+                    tomar_foto("Sale por jerarquía.")
                 pila.append(token)
                 tomar_foto(f"Operador '{token}' a la pila.")
 
-        while pila: salida.append(pila.pop())
-        tomar_foto("Se invierte el resultado final.")
+        while pila:
+            salida.append(pila.pop())
+            tomar_foto("Vaciando pila final.")
         return frames
 
     def generar_frames_infija_inteligente(self, tokens):
@@ -584,6 +574,326 @@ class CompiladorApp(QtWidgets.QMainWindow):
                 tomar_foto()
 
         return frames
+
+    # ==========================================
+    # LÓGICA MÓDULO 4 (Fase 2: Animación Sincronizada)
+    # ==========================================
+    def iniciar_animacion_m4(self, tipo_notacion):
+        """Lee el árbol construido, genera la expresión y arranca las pilas"""
+        if not self.arbol_m4:
+            QtWidgets.QMessageBox.warning(self, "Aviso", "Primero construye un árbol.")
+            return
+
+        # 1. Extraemos la expresión del árbol que dibujaste
+        try:
+            tokens = self.calc.obtener_infija(self.arbol_m4)
+            ecuacion_txt = " ".join(tokens)
+        except Exception:
+            QtWidgets.QMessageBox.warning(self, "Error", "El árbol está incompleto.")
+            return
+
+        # 2. Preparamos la Resolución Matemática (Procedimiento 3)
+        res_eval, pasos_eval = self.calc.evaluar_con_pasos(self.arbol_m4)
+        self.res_mat_m4 = f"🧮 RESOLUCIÓN MATEMÁTICA:\n"
+        self.res_mat_m4 += "\n".join(pasos_eval) if pasos_eval else "   (Sin operaciones)"
+        self.res_mat_m4 += f"\n\n🎯 RESULTADO FINAL: {res_eval}"
+
+        # 3. Generamos los fotogramas de las pilas (Procedimiento 2)
+        self.frames_m4 = []
+        if tipo_notacion == "Postfija":
+            self.frames_m4 = self.generar_frames_postfija(tokens)
+        elif tipo_notacion == "Prefija":
+            self.frames_m4 = self.generar_frames_prefija(tokens)
+        elif tipo_notacion == "Infija":
+            self.frames_m4 = self.generar_frames_infija_inteligente(tokens)
+
+        # 4. Bloquear controles e iniciar reloj
+        self.btn_infijaANota.setEnabled(False)
+        self.btn_postfijaANota.setEnabled(False)
+        self.btn_PrefijaANota.setEnabled(False)
+
+        # Usamos un timer específico para el módulo 4
+        if not hasattr(self, 'timer_m4'):
+            self.timer_m4 = QTimer()
+            self.timer_m4.timeout.connect(self.ejecutar_paso_animacion_m4)
+
+        self.timer_m4.start(800)
+
+    def ejecutar_paso_animacion_m4(self):
+        """Mueve las pilas y hace brillar el nodo del árbol correspondiente"""
+        if not self.frames_m4:
+            self.timer_m4.stop()
+            self.btn_infijaANota.setEnabled(True)
+            self.btn_postfijaANota.setEnabled(True)
+            self.btn_PrefijaANota.setEnabled(True)
+            return
+
+        estado_actual = self.frames_m4.pop(0)
+
+        # Identificar qué token se está procesando para iluminar el árbol
+        token_activo = ""
+        log = estado_actual.get("log", "")
+        lineas = log.strip().split('\n')
+        if lineas:
+            # Buscamos el token entre comillas simples en la última línea del log
+            match = re.search(r"'(.*?)'", lineas[-1])
+            if match: token_activo = match.group(1)
+
+        self.dibujar_todo_m4(estado_actual, token_activo)
+
+    def dibujar_todo_m4(self, estado, token_activo):
+        """Dibuja el Árbol (Izq) y las Pilas (Der) con nombres claros"""
+        escena = QGraphicsScene(self)
+        self.grap_3.setScene(escena)
+
+        # 1. Dibujar el Árbol (Lado Izquierdo)
+        if self.arbol_m4:
+            profundidad = self.obtener_profundidad(self.arbol_m4)
+            dx_inicial = 30 * (2 ** (profundidad - 2)) if profundidad > 1 else 0
+            # Posicionamos el árbol bien a la izquierda
+            self.dibujar_nodo_sincronizado(self.arbol_m4, escena, -150, 40, dx_inicial, token_activo)
+
+        # 2. Dibujar las Pilas (Lado Derecho)
+        fuente_tit = QFont("Arial", 11, QFont.Weight.Bold)
+        fuente_it = QFont("Consolas", 12, QFont.Weight.Bold)
+        pen = QPen(QColor("#6C5CE7"), 2)
+        off_x = 140  # Inicio de las columnas
+
+        # Etiquetas de las Pilas
+        t_ent = escena.addText("ENTRADA", fuente_tit)
+        t_ent.setDefaultTextColor(QColor("#FFFFFF"))
+        t_ent.setPos(off_x, 10)
+
+        t_pil = escena.addText("PILA (Signos)", fuente_tit)
+        t_pil.setDefaultTextColor(QColor("#00E676"))
+        t_pil.setPos(off_x + 95, 10)
+
+        t_sal = escena.addText("SALIDA", fuente_tit)
+        t_sal.setDefaultTextColor(QColor("#FFFFFF"))
+        t_sal.setPos(off_x + 210, 10)
+
+        # Dibujo de Entrada (Cajas grises)
+        for i, t in enumerate(estado["entrada"]):
+            escena.addRect(off_x, 45 + (i * 35), 70, 30, pen, QBrush(QColor("#1E1E1E")))
+            txt = escena.addText(t, fuente_it)
+            txt.setDefaultTextColor(Qt.GlobalColor.white)
+            txt.setPos(off_x + 25, 45 + (i * 35))
+
+        # Dibujo de Pila (Cajas verdes - De abajo hacia arriba)
+        y_base_pila = 350
+        for i, t in enumerate(estado["pila_operadores"]):
+            escena.addRect(off_x + 100, y_base_pila - (i * 35), 80, 30, pen, QBrush(QColor("#00E676")))
+            txt = escena.addText(t, fuente_it)
+            txt.setDefaultTextColor(Qt.GlobalColor.black)
+            txt.setPos(off_x + 125, y_base_pila - (i * 35))
+
+        # Dibujo de Salida (Cajas grises)
+        for i, t in enumerate(estado["salida"]):
+            escena.addRect(off_x + 210, 45 + (i * 35), 140, 30, pen, QBrush(QColor("#1E1E1E")))
+            txt = escena.addText(t, fuente_it)
+            txt.setDefaultTextColor(Qt.GlobalColor.white)
+            txt.setPos(off_x + 220, 45 + (i * 35))
+
+        # 3. Procedimientos al Panel Lateral
+        infija_arbol = " ".join(self.calc.obtener_infija(self.arbol_m4))
+        texto_panel = f"🌳 1. EXPRESIÓN RECONSTRUIDA DEL ÁRBOL:\n   {infija_arbol}\n\n"
+        texto_panel += f"⚙️ 2. PROCEDIMIENTO DE PILAS:\n{estado.get('log', '')}\n\n"
+        texto_panel += f"{('=' * 40)}\n\n{getattr(self, 'res_mat_m4', '')}"
+
+        self.actualizar_texto_resultado(self.area_res4, texto_panel)
+
+    def generar_frames_postfija(self, tokens):
+        frames = []
+        entrada = list(tokens)
+        pila = []
+        salida = []
+        log = "Iniciando Infija -> Postfija\n"
+
+        def tomar_foto(mensaje=""):
+            nonlocal log
+            if mensaje: log += f" > {mensaje}\n"
+            frames.append({"entrada": list(entrada), "pila_operadores": list(pila), "salida": list(salida), "log": log})
+
+        tomar_foto()
+        for token in tokens:
+            entrada.pop(0)
+            if self.calc.es_operando(token):
+                salida.append(token)
+                tomar_foto(f"Operando '{token}' a salida.")
+            elif token == '(':
+                pila.append(token)
+                tomar_foto("Paréntesis '(' entra a la pila.")
+            elif token == ')':
+                while pila and pila[-1] != '(':
+                    salida.append(pila.pop())
+                    tomar_foto("Vaciando operadores...")
+                if pila and pila[-1] == '(':
+                    pila.pop()  # Saca el (
+                    tomar_foto("Se elimina '(' de la pila.")  # ¡FOTO PARA LIMPIAR EL ( !
+            else:
+                while (pila and pila[-1] != '(' and
+                       self.calc.preferencia.get(pila[-1], 0) >= self.calc.preferencia.get(token, 0)):
+                    salida.append(pila.pop())
+                    tomar_foto("Sale operador por jerarquía.")
+                pila.append(token)
+                tomar_foto(f"Operador '{token}' a la pila.")
+
+        while pila:
+            salida.append(pila.pop())
+            tomar_foto("Vaciando pila final.")
+        return frames
+
+    def dibujar_nodo_sincronizado(self, nodo, escena, x, y, dx, token_activo):
+        """Dibuja nodos y los ilumina en dorado si coinciden con el token activo"""
+        if not nodo: return
+        radio = 18
+
+        if nodo.izquierda:
+            escena.addLine(x, y, x - dx, y + 50, QPen(QColor("#6C5CE7"), 2))
+            self.dibujar_nodo_sincronizado(nodo.izquierda, escena, x - dx, y + 50, dx / 2, token_activo)
+        if nodo.derecha:
+            escena.addLine(x, y, x + dx, y + 50, QPen(QColor("#6C5CE7"), 2))
+            self.dibujar_nodo_sincronizado(nodo.derecha, escena, x + dx, y + 50, dx / 2, token_activo)
+
+        # Lógica de iluminación
+        es_activo = (str(nodo.valor) == token_activo)
+        color_fondo = "#FFD700" if es_activo else "#1E1E1E"  # Dorado si está activo
+        color_texto = "#000000" if es_activo else "#FFFFFF"
+
+        escena.addEllipse(x - radio, y - radio, radio * 2, radio * 2, QPen(Qt.GlobalColor.white),
+                          QBrush(QColor(color_fondo)))
+        txt = escena.addText(str(nodo.valor), QFont("Arial", 9, QFont.Weight.Bold))
+        txt.setDefaultTextColor(QColor(color_texto))
+        txt.setPos(x - txt.boundingRect().width() / 2, y - txt.boundingRect().height() / 2)
+
+    def validar_input_m4(self, texto):
+        if not texto: return
+        char_actual = texto[-1]
+        self.int_NodoANota.blockSignals(True)
+        if char_actual in self.calc.preferencia or char_actual == '√':
+            if len(texto) > 1: self.int_NodoANota.setText(char_actual)
+        elif char_actual.isalpha():
+            if len(texto) > 1: self.int_NodoANota.setText(char_actual)
+            if char_actual.islower(): self.int_NodoANota.setText(char_actual.upper())
+        elif char_actual.isdigit():
+            solo_numeros = "".join(filter(str.isdigit, texto))
+            self.int_NodoANota.setText(solo_numeros)
+        else:
+            self.int_NodoANota.setText(texto[:-1])
+        self.int_NodoANota.blockSignals(False)
+
+    def agregar_nodo_m4(self):
+        valor = self.int_NodoANota.text().strip()
+        if not valor: return
+
+        if self.arbol_m4 is None:
+            es_operador = valor in self.calc.preferencia or valor == '√'
+            if not es_operador:
+                QtWidgets.QMessageBox.warning(self, "Inválido", "La raíz debe ser un operador.")
+                self.int_NodoANota.clear()
+                return
+            self.arbol_m4 = Nodo(valor)
+            self.nodo_sel_m4 = self.arbol_m4
+        elif self.nodo_sel_m4:
+            if self.calc.es_operando(self.nodo_sel_m4.valor):
+                QtWidgets.QMessageBox.warning(self, "Inválido", "Los números/letras no tienen hijos.")
+                self.int_NodoANota.clear()
+                return
+            if self.nodo_sel_m4.izquierda is None:
+                self.nodo_sel_m4.izquierda = Nodo(valor)
+            elif self.nodo_sel_m4.derecha is None:
+                self.nodo_sel_m4.derecha = Nodo(valor)
+            else:
+                QtWidgets.QMessageBox.information(self, "Lleno", "El operador ya tiene dos hijos.")
+
+        self.int_NodoANota.clear()
+        self.actualizar_vistas_m4()
+
+    def eliminar_nodo_m4(self):
+        if self.nodo_sel_m4 and self.arbol_m4:
+            if self.nodo_sel_m4 == self.arbol_m4:
+                self.arbol_m4 = None
+            else:
+                self.eliminar_referencia(self.arbol_m4, self.nodo_sel_m4)
+            self.nodo_sel_m4 = None
+            self.actualizar_vistas_m4()
+
+    def limpiar_arbol_m4(self):
+        self.arbol_m4 = None
+        self.nodo_sel_m4 = None
+        self.actualizar_vistas_m4()
+
+    def actualizar_vistas_m4(self):
+        nueva_escena = QGraphicsScene(self)
+        self.grap_3.setScene(nueva_escena)
+        self.mapa_items_m4 = {}
+
+        if self.arbol_m4:
+            profundidad = self.obtener_profundidad(self.arbol_m4)
+            dx_inicial = 35 * (2 ** (profundidad - 2)) if profundidad > 1 else 0
+
+            # Dibujamos en el lado izquierdo (-100 en X)
+            self.dibujar_nodo_m4(self.arbol_m4, nueva_escena, -100, 20, dx_inicial)
+            nueva_escena.selectionChanged.connect(self.al_seleccionar_nodo_m4)
+
+            # Extraemos la expresión para prepararla para la animación de las pilas
+            try:
+                infija = " ".join(self.calc.obtener_infija(self.arbol_m4))
+            except:
+                infija = "(Expresión Incompleta)"
+
+            # Mostramos en area_res4
+            proc = f"🌳 ÁRBOL CONSTRUIDO:\nExpresión: {infija}\n\n(A la espera de los botones de animación...)"
+            try:
+                self.actualizar_texto_resultado(self.area_res4, proc)
+            except AttributeError:
+                pass
+        else:
+            self.limpiar_area_resultado(self.area_res4)
+
+    def dibujar_nodo_m4(self, nodo, escena, x, y, dx):
+        from PyQt6.QtWidgets import QGraphicsItem
+        if not nodo: return
+        radio = 18
+        pen = QPen(QColor("#6C5CE7"), 2)
+
+        if nodo.izquierda:
+            escena.addLine(x, y, x - dx, y + 45, pen)
+            self.dibujar_nodo_m4(nodo.izquierda, escena, x - dx, y + 45, dx / 2)
+        if nodo.derecha:
+            escena.addLine(x, y, x + dx, y + 45, pen)
+            self.dibujar_nodo_m4(nodo.derecha, escena, x + dx, y + 45, dx / 2)
+
+        elipse = escena.addEllipse(x - radio, y - radio, radio * 2, radio * 2, QPen(Qt.GlobalColor.white))
+
+        es_seleccionado = (nodo == self.nodo_sel_m4)
+        color_fondo = "#00E676" if es_seleccionado else "#1E1E1E"
+        color_texto = "#000000" if es_seleccionado else "#FFFFFF"
+
+        elipse.setBrush(QBrush(QColor(color_fondo)))
+        elipse.setFlags(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable)
+
+        txt = escena.addText(str(nodo.valor), QFont("Arial", 10, QFont.Weight.Bold))
+        txt.setDefaultTextColor(QColor(color_texto))
+        txt.setPos(x - txt.boundingRect().width() / 2, y - txt.boundingRect().height() / 2)
+
+        self.mapa_items_m4[elipse] = (nodo, txt)
+
+    def al_seleccionar_nodo_m4(self):
+        if not self.grap_3.scene(): return
+        items = self.grap_3.scene().selectedItems()
+
+        if items:
+            datos = self.mapa_items_m4.get(items[0])
+            if datos:
+                self.nodo_sel_m4 = datos[0]
+                for elipse, (nodo, txt) in self.mapa_items_m4.items():
+                    if nodo == self.nodo_sel_m4:
+                        elipse.setBrush(QBrush(QColor("#00E676")))
+                        txt.setDefaultTextColor(QColor("#000000"))
+                    else:
+                        elipse.setBrush(QBrush(QColor("#1E1E1E")))
+                        txt.setDefaultTextColor(QColor("#FFFFFF"))
 
 
 if __name__ == "__main__":
