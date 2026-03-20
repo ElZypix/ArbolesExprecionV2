@@ -240,3 +240,160 @@ class CalculadoraArbol:
             resultado.append(str(nodo.valor))
 
         return resultado
+
+    def evaluar_jerarquia_estricta(self, infija_tokens):
+        """
+        Evalúa una expresión matemática paso a paso siguiendo ESTRICTAMENTE PEMDAS,
+        tal como lo haría un humano en una libreta.
+        """
+        tokens = list(infija_tokens)
+        pasos = []
+
+        # Jerarquía para la búsqueda (3 es mayor prioridad)
+        jerarquia = {'^': 3, '√': 3, '*': 2, '/': 2, '+': 1, '-': 1}
+
+        while len(tokens) > 1:
+            # 1. Encontrar el paréntesis más interno
+            inicio_par = -1
+            fin_par = -1
+            for i, t in enumerate(tokens):
+                if t == '(':
+                    inicio_par = i
+                elif t == ')':
+                    fin_par = i
+                    break
+
+            # Definir el rango de búsqueda (dentro del paréntesis o toda la expresión)
+            rango_inicio = inicio_par + 1 if inicio_par != -1 else 0
+            rango_fin = fin_par if fin_par != -1 else len(tokens)
+
+            # 2. Buscar el operador de mayor jerarquía en ese rango (de izq a der)
+            mejor_idx = -1
+            max_prioridad = -1
+
+            for i in range(rango_inicio, rango_fin):
+                token = tokens[i]
+                if token in jerarquia:
+                    if jerarquia[token] > max_prioridad:
+                        max_prioridad = jerarquia[token]
+                        mejor_idx = i
+
+            # 3. Si encontramos un operador, lo resolvemos
+            if mejor_idx != -1:
+                op = tokens[mejor_idx]
+                op1 = tokens[mejor_idx - 1]
+                op2 = tokens[mejor_idx + 1]
+
+                # Resolucion matemática
+                res_actual = self.resolver_operacion_simple(op, op1, op2)
+
+                # Guardar el paso narrativo
+                if op in ['^', '√']:
+                    regla = "[Potencia/Raíz]"
+                elif op in ['*', '/']:
+                    regla = "[Mult/Div]"
+                else:
+                    regla = "[Suma/Resta]"
+
+                pasos.append(f"{regla} Se resuelve {op1} {op} {op2} ➔ {res_actual}")
+
+                # Reemplazar la operación por el resultado en la lista
+                tokens = tokens[:mejor_idx - 1] + [str(res_actual)] + tokens[mejor_idx + 2:]
+
+            # 4. Limpiar paréntesis innecesarios (ej: "( 32 )" -> "32")
+            else:
+                if inicio_par != -1 and fin_par != -1:
+                    tokens.pop(fin_par)
+                    tokens.pop(inicio_par)
+
+        res_final = tokens[0] if tokens else 0
+        return res_final, pasos
+
+    def generar_cuadruplos_estricto(self, infija_tokens):
+        tokens = list(infija_tokens)
+        cuadruplos = []
+        jerarquia = {'^': 3, '√': 3, '*': 2, '/': 2, '+': 1, '-': 1}
+        temp_count = 0
+
+        while len(tokens) > 1:
+            inicio_par, fin_par = -1, -1
+            for i, t in enumerate(tokens):
+                if t == '(':
+                    inicio_par = i
+                elif t == ')':
+                    fin_par = i; break
+
+            rango_inicio = inicio_par + 1 if inicio_par != -1 else 0
+            rango_fin = fin_par if fin_par != -1 else len(tokens)
+
+            mejor_idx, max_prioridad = -1, -1
+            for i in range(rango_inicio, rango_fin):
+                token = tokens[i]
+                if token in jerarquia and jerarquia[token] > max_prioridad:
+                    max_prioridad = jerarquia[token]
+                    mejor_idx = i
+
+            if mejor_idx != -1:
+                op = tokens[mejor_idx]
+                op1 = tokens[mejor_idx - 1]
+                op2 = tokens[mejor_idx + 1]
+                res = f"T{temp_count}"
+
+                cuadruplos.append([op, op1, op2, res])
+                tokens = tokens[:mejor_idx - 1] + [res] + tokens[mejor_idx + 2:]
+                temp_count += 1
+            else:
+                if inicio_par != -1 and fin_par != -1:
+                    tokens.pop(fin_par)
+                    tokens.pop(inicio_par)
+        return cuadruplos
+
+    def generar_triplos_estricto(self, infija_tokens):
+        tokens = list(infija_tokens)
+        triplos = []
+        jerarquia = {'^': 3, '√': 3, '*': 2, '/': 2, '+': 1, '-': 1}
+        id_count = 0
+
+        while len(tokens) > 1:
+            inicio_par, fin_par = -1, -1
+            for i, t in enumerate(tokens):
+                if t == '(':
+                    inicio_par = i
+                elif t == ')':
+                    fin_par = i; break
+
+            rango_inicio = inicio_par + 1 if inicio_par != -1 else 0
+            rango_fin = fin_par if fin_par != -1 else len(tokens)
+
+            mejor_idx, max_prioridad = -1, -1
+            for i in range(rango_inicio, rango_fin):
+                token = tokens[i]
+                if token in jerarquia and jerarquia[token] > max_prioridad:
+                    max_prioridad = jerarquia[token]
+                    mejor_idx = i
+
+            if mejor_idx != -1:
+                op = tokens[mejor_idx]
+                op1 = tokens[mejor_idx - 1]
+                op2 = tokens[mejor_idx + 1]
+                res = f"({id_count})"
+
+                triplos.append([op, op1, op2])
+                tokens = tokens[:mejor_idx - 1] + [res] + tokens[mejor_idx + 2:]
+                id_count += 1
+            else:
+                if inicio_par != -1 and fin_par != -1:
+                    tokens.pop(fin_par)
+                    tokens.pop(inicio_par)
+        return triplos
+
+    def generar_codigo_p_estricto(self, cuadruplos):
+        """Genera el Código P basándose en los cuádruplos para mantener la jerarquía exacta"""
+        codigo_p = []
+        for op, op1, op2, res in cuadruplos:
+            codigo_p.append(["LOD", op1, "-", "-"])
+            codigo_p.append(["LOD", op2, "-", "-"])
+            instruccion = {'+': 'ADD', '-': 'SUB', '*': 'MUL', '/': 'DIV', '^': 'POW', '√': 'SQRT'}.get(op, 'OP')
+            codigo_p.append([instruccion, "-", "-", "-"])
+            codigo_p.append(["STO", res, "-", "-"])
+        return codigo_p

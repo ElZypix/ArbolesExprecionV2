@@ -118,9 +118,8 @@ class CompiladorApp(QtWidgets.QMainWindow):
         self.int_NodoACode.textChanged.connect(self.validar_input_m6)
         self.int_NodoACode.returnPressed.connect(self.agregar_nodo_m6)
 
-
     def ejecutar_modulo_1(self, ecuacion):
-        """Lógica estable del Módulo 1: Expresión -> Árbol + Resolución Paso a Paso"""
+        """Lógica del Módulo 1: Expresión -> Árbol + Resolución por Jerarquía Estricta"""
         texto_limpio = ecuacion.strip()
 
         # Anti-Crasheo: Si el usuario borra todo, limpiamos de forma segura
@@ -131,41 +130,41 @@ class CompiladorApp(QtWidgets.QMainWindow):
             return
 
         try:
-            # 1. Construir Lógica
+            # 1. Construir la Lógica del Árbol (Para el dibujo)
             posfija = self.calc.infija_a_posfija(texto_limpio)
             arbol = self.calc.construir_arbol(posfija)
 
             if arbol:
-                # 2. Dibujar Árbol (en escena nueva para evitar conflictos)
+                # 2. Dibujar Árbol
                 nueva_escena = QGraphicsScene()
                 self.grap_GenArbol1.setScene(nueva_escena)
 
-                # --- MAGIA ANTI-COLISIONES ---
                 profundidad = self.obtener_profundidad(arbol)
-                # Entre más profundo sea el árbol, más se abren las ramas iniciales (dx)
                 dx_inicial = 35 * (2 ** (profundidad - 2)) if profundidad > 1 else 0
 
                 self.dibujar_nodo(arbol, nueva_escena, 0, 0, dx_inicial)
 
-                # 3. Evaluar Matemáticamente / Algebraicamente
-                res_final, pasos = self.calc.evaluar_con_pasos(arbol)
+                # 3. Evaluar Matemáticamente usando la NUEVA función de jerarquía
+                # Importamos 're' aquí por si acaso, o asegúrate de que 'import re' esté al inicio del archivo
+                import re
+                tokens_infijos = re.findall(r"([a-zA-Z]+|\d+(?:\.\d+)?|[/√+*^()-])", texto_limpio)
+
+                res_final, pasos = self.calc.evaluar_jerarquia_estricta(tokens_infijos)
 
                 # 4. Construir el panel de Procedimiento
-                proc = "⚙️ PROCEDIMIENTO PASO A PASO:\n\n"
-                proc += f"1. Infix ➔ Postfix:\n   {' '.join(posfija)}\n\n"
-                proc += "2. Construcción del Árbol en Memoria\n\n"
-                proc += "3. Resolución:\n"
+                proc = "⚙️ PROCEDIMIENTO POR JERARQUÍA ESTRICTA:\n\n"
 
                 if pasos:
-                    proc += "\n".join(pasos)
+                    for i, paso in enumerate(pasos):
+                        proc += f" Paso {i + 1}: {paso}\n"
                 else:
-                    proc += "   (No hay operaciones pendientes)"
+                    proc += "   (No hay operaciones pendientes)\n"
 
-                proc += f"\n\n🎯 RESULTADO FINAL: {res_final}"
+                proc += f"\n🎯 RESULTADO FINAL: {res_final}"
 
                 self.actualizar_texto_resultado(self.area_Res1, proc)
 
-        except Exception:
+        except Exception as e:
             # Ignoramos silenciosamente si la ecuación está incompleta (ej: "5 + ")
             pass
 
@@ -295,27 +294,30 @@ class CompiladorApp(QtWidgets.QMainWindow):
         self.actualizar_vistas_manual()
 
     def actualizar_vistas_manual(self):
-        nueva_escena = QGraphicsScene(self)  # <-- (self) evita el crasheo de memoria
-        self.grap_Arbol2.setScene(nueva_escena)
+        escena = QGraphicsScene(self)
+        self.grap_Arbol2.setScene(escena)
         self.mapa_items_manual = {}
-
         if self.arbol_manual:
-            profundidad = self.obtener_profundidad(self.arbol_manual)
-            dx_inicial = 35 * (2 ** (profundidad - 2)) if profundidad > 1 else 0
-            self.dibujar_nodo_interactivo(self.arbol_manual, nueva_escena, 0, 0, dx_inicial)
+            prof = self.obtener_profundidad(self.arbol_manual)
+            dx = 35 * (2 ** (prof - 2)) if prof > 1 else 0
+            self.dibujar_nodo_interactivo(self.arbol_manual, escena, 0, 0, dx)
+            escena.selectionChanged.connect(self.al_seleccionar_nodo_manual)
 
-            # Conectamos el clic al sistema seguro
-            nueva_escena.selectionChanged.connect(self.al_seleccionar_nodo_manual)
-
-            res, pasos = self.calc.evaluar_con_pasos(self.arbol_manual)
             try:
-                infija = " ".join(self.calc.obtener_infija(self.arbol_manual))
+                infija_tokens = self.calc.obtener_infija(self.arbol_manual)
             except:
-                infija = "(Expresión Incompleta)"
+                infija_tokens = ["(Expresión incompleta)"]
 
-            proc = f"✅ Expresión Construida: {infija}\n\n⚙️ RESOLUCIÓN:\n"
-            proc += "\n".join(pasos) if pasos else "   (Esperando más nodos...)"
-            proc += f"\n\n🎯 RESULTADO FINAL: {res}"
+            # --- NUEVA JERARQUÍA AQUÍ ---
+            res_final, pasos = self.calc.evaluar_jerarquia_estricta(infija_tokens)
+            proc = f"✅ EXPRESIÓN: {' '.join(infija_tokens)}\n\n⚙️ JERARQUÍA ESTRICTA:\n\n"
+            if pasos:
+                for i, paso in enumerate(pasos):
+                    proc += f" Paso {i + 1}: {paso}\n"
+            else:
+                proc += "   (Esperando nodos...)"
+
+            proc += f"\n\n🎯 RESULTADO FINAL: {res_final}"
             self.actualizar_texto_resultado(self.area_res2, proc)
         else:
             self.limpiar_area_resultado(self.area_res2)
@@ -380,25 +382,14 @@ class CompiladorApp(QtWidgets.QMainWindow):
             return
 
         tokens = re.findall(r"([a-zA-Z]+|\d+(?:\.\d+)?|[/√+*^()-])", ecuacion)
-
-        # ==========================================
-        # NUEVO: RESOLUCIÓN MATEMÁTICA Y SIMPLIFICACIÓN
-        # ==========================================
         try:
-            # Usamos el cerebro del Módulo 1 para resolver la ecuación silenciosamente
-            posfija_temp = self.calc.infija_a_posfija(ecuacion)
-            arbol_temp = self.calc.construir_arbol(posfija_temp)
-            res_eval, pasos_eval = self.calc.evaluar_con_pasos(arbol_temp)
-
-            self.resolucion_m3 = "🧮 RESOLUCIÓN MATEMÁTICA Y SIMPLIFICACIÓN:\n"
-            if pasos_eval:
-                self.resolucion_m3 += "\n".join(pasos_eval)
-            else:
-                self.resolucion_m3 += "   (Sin operaciones pendientes)"
-            self.resolucion_m3 += f"\n\n🎯 RESULTADO FINAL: {res_eval}"
+            res_eval, pasos_eval = self.calc.evaluar_jerarquia_estricta(tokens)
+            self.resolucion_m3 = "🧮 JERARQUÍA MATEMÁTICA:\n"
+            for i, p in enumerate(pasos_eval):
+                self.resolucion_m3 += f" Paso {i + 1}: {p}\n"
+            self.resolucion_m3 += f"\n🎯 RESULTADO FINAL: {res_eval}"
         except Exception:
-            self.resolucion_m3 = "🧮 RESOLUCIÓN MATEMÁTICA:\n   (No se pudo evaluar matemáticamente)"
-        # ==========================================
+            self.resolucion_m3 = "🧮 (Expresión inválida)"
 
         self.frames_animacion = []
         if tipo_notacion == "Postfija":
@@ -624,9 +615,12 @@ class CompiladorApp(QtWidgets.QMainWindow):
         # 1. Extraemos la expresión del árbol que dibujaste
         try:
             tokens = self.calc.obtener_infija(self.arbol_m4)
-            ecuacion_txt = " ".join(tokens)
+            res_eval, pasos_eval = self.calc.evaluar_jerarquia_estricta(tokens)
+            self.res_mat_m4 = f"🧮 JERARQUÍA MATEMÁTICA ESTRICTA:\n"
+            for i, p in enumerate(pasos_eval):
+                self.res_mat_m4 += f" Paso {i + 1}: {p}\n"
+            self.res_mat_m4 += f"\n🎯 RESULTADO FINAL: {res_eval}"
         except Exception:
-            QtWidgets.QMessageBox.warning(self, "Error", "El árbol está incompleto.")
             return
 
         # 2. Preparamos la Resolución Matemática (Procedimiento 3)
@@ -947,53 +941,22 @@ class CompiladorApp(QtWidgets.QMainWindow):
             valores_pasos = {}
             procedimiento = f"⚙️ PROCEDIMIENTO DETALLADO ({tipo.upper()}):\n\n"
 
+            infija_tokens = re.findall(r"([a-zA-Z]+|\d+(?:\.\d+)?|[/√+*^()-])", ecuacion)
+
             if tipo == "Cuadruplos":
                 cabeceras = ["ID", "Operador", "Op1", "Op2", "Resultado"]
-                filas = self.calc.generar_cuadruplos(posfija)
-                datos = [[str(i)] + fila for i, fila in enumerate(filas)]
-
-                for i, f in enumerate(filas):
-                    # Obtenemos valores reales (si son temporales, buscamos su valor previo)
-                    v1 = valores_pasos.get(f[1], f[1])
-                    v2 = valores_pasos.get(f[2], f[2])
-                    res_act = self.calc.resolver_operacion_simple(f[0], v1, v2)
-                    valores_pasos[f[3]] = res_act  # Guardamos el valor de T0, T1...
-
-                    procedimiento += f" {i}. El operador '{f[0]}' se aplica a '{f[1]}' y '{f[2]}', guardando en {f[3]}. -> {res_act}\n"
-
+                filas = self.calc.generar_cuadruplos_estricto(infija_tokens)
+                datos = [[str(i)] + f for i, f in enumerate(filas)]
             elif tipo == "Triplos":
                 cabeceras = ["ID", "Operador", "Op1", "Op2"]
-                filas = self.calc.generar_triplos(posfija)
-                datos = [[str(i)] + fila for i, fila in enumerate(filas)]
-
-                for i, f in enumerate(filas):
-                    v1 = valores_pasos.get(f[1], f[1])
-                    v2 = valores_pasos.get(f[2], f[2])
-                    res_act = self.calc.resolver_operacion_simple(f[0], v1, v2)
-                    valores_pasos[f"({i})"] = res_act  # Guardamos el valor del índice (0), (1)...
-
-                    procedimiento += f" {i}. Operación '{f[0]}' entre '{f[1]}' y '{f[2]}'. -> {res_act}\n"
-
+                filas = self.calc.generar_triplos_estricto(infija_tokens)
+                datos = [[str(i)] + f for i, f in enumerate(filas)]
             elif tipo == "CodigoP":
-                cabeceras = ["ID", "Instrucción", "Variable", "-"]
-                filas = self.calc.generar_codigo_p(posfija)
-                datos = [[str(i)] + fila for i, fila in enumerate(filas)]
-                pila_sim = []
-
-                for i, f in enumerate(filas):
-                    if f[0] == "LOD":
-                        pila_sim.append(f[1])
-                        procedimiento += f" {i}. LOD: Carga '{f[1]}' a la pila.\n"
-                    elif f[0] == "STO":
-                        procedimiento += f" {i}. STO: Almacena el resultado en '{f[1]}'.\n"
-                    else:
-                        op2 = pila_sim.pop()
-                        op1 = pila_sim.pop()
-                        simb = {'ADD': '+', 'SUB': '-', 'MUL': '*', 'DIV': '/', 'POW': '^'}.get(f[0], f[0])
-                        res_act = self.calc.resolver_operacion_simple(simb, op1, op2)
-                        pila_sim.append(str(res_act))
-                        procedimiento += f" {i}. {f[0]}: Operación de '{op1}' y '{op2}'. -> {res_act}\n"
-                valores_pasos["final"] = pila_sim[-1] if pila_sim else "0"
+                cabeceras = ["ID", "Instrucción", "Variable", "-", "-"]
+                # Usamos los cuádruplos como base para que el Código P respete el orden humano
+                cuad_base = self.calc.generar_cuadruplos_estricto(infija_tokens)
+                filas = self.calc.generar_codigo_p_estricto(cuad_base)
+                datos = [[str(i)] + f for i, f in enumerate(filas)]
 
             # --- Llenado de Tabla tab_1 ---
             self.tab_1.setRowCount(len(datos))
@@ -1014,26 +977,81 @@ class CompiladorApp(QtWidgets.QMainWindow):
                     item.setForeground(QBrush(QColor("#FFFFFF")))
                     self.tab_1.setItem(i, j, item)
 
-            # --- Resultado Final ---
-            res_total = list(valores_pasos.values())[-1]
-            procedimiento += "\n" + ("=" * 45) + "\n"
-            procedimiento += f"🎯 RESULTADO FINAL: {res_total}"
+            infija_tokens = re.findall(r"([a-zA-Z]+|\d+(?:\.\d+)?|[/√+*^()-])", ecuacion)
+            res_final, pasos = self.calc.evaluar_jerarquia_estricta(infija_tokens)
 
-            self.actualizar_texto_resultado(self.area_res5, procedimiento)
+            proc = f"⚙️ CÓDIGO {tipo.upper()} GENERADO EN LA TABLA.\n\n"
+            proc += "🧮 RESOLUCIÓN MATEMÁTICA (JERARQUÍA ESTRICTA):\n\n"
+            for i, paso in enumerate(pasos):
+                proc += f" Paso {i + 1}: {paso}\n"
+
+            proc += "\n" + ("=" * 45) + f"\n🎯 RESULTADO FINAL: {res_final}"
+
+            self.actualizar_texto_resultado(self.area_res5, proc)
 
         except Exception as e:
             print(f"Error: {e}")
 
     def mostrar_estadisticas(self):
-        """Usa el AnalizadorLexico para escanear el proyecto y mostrar los resultados"""
+        """Muestra las estadísticas en una ventana con scroll y diseño oscuro"""
         try:
-            # Llama al método que lee los archivos .py del proyecto
             reporte = self.analizador.generar_reporte_codigo_fuente()
 
-            # Lo mostramos en una ventana emergente profesional
-            QtWidgets.QMessageBox.information(self, "Estadísticas del Compilador", reporte)
+            # 1. Crear ventana de diálogo personalizada
+            dialogo = QtWidgets.QDialog(self)
+            dialogo.setWindowTitle("Estadísticas del Compilador")
+            dialogo.resize(450, 550)  # Tamaño ideal para lectura
+            dialogo.setStyleSheet("background-color: #2D2D2D;")
+
+            layout = QtWidgets.QVBoxLayout(dialogo)
+
+            # 2. Crear área de texto con Scroll Integrado
+            area_texto = QtWidgets.QTextEdit(dialogo)
+            area_texto.setReadOnly(True)
+            area_texto.setPlainText(reporte)
+
+            # Estilo oscuro y verde neón para combinar con tu app
+            area_texto.setStyleSheet("""
+                QTextEdit {
+                    background-color: #1E1E1E;
+                    color: #00E676;
+                    font-family: 'Consolas';
+                    font-size: 14px;
+                    border: 2px solid #6C5CE7;
+                    padding: 10px;
+                }
+                QScrollBar:vertical {
+                    background: #2D2D2D;
+                    width: 14px;
+                }
+                QScrollBar::handle:vertical {
+                    background: #6C5CE7;
+                    border-radius: 5px;
+                }
+            """)
+            layout.addWidget(area_texto)
+
+            # 3. Botón para cerrar
+            btn_cerrar = QtWidgets.QPushButton("Aceptar", dialogo)
+            btn_cerrar.setStyleSheet("""
+                QPushButton {
+                    background-color: #6C5CE7;
+                    color: white;
+                    font-weight: bold;
+                    font-size: 14px;
+                    padding: 10px;
+                    border-radius: 5px;
+                }
+                QPushButton:hover { background-color: #5A4BCE; }
+            """)
+            btn_cerrar.clicked.connect(dialogo.accept)
+            layout.addWidget(btn_cerrar)
+
+            # 4. Mostrar la ventana
+            dialogo.exec()
+
         except Exception as e:
-            QtWidgets.QMessageBox.warning(self, "Error", f"No se pudo generar el reporte: {e}")
+            QtWidgets.QMessageBox.warning(self, "Error", f"Fallo al generar reporte: {e}")
 
     #modulo 6
     def agregar_nodo_m6(self):
@@ -1201,9 +1219,16 @@ class CompiladorApp(QtWidgets.QMainWindow):
                     self.tab_2.setItem(i, j, item)
 
             # 3. Mostrar el Resultado Final en el panel
-            res_total = list(valores_pasos.values())[-1]
-            proc += "\n" + ("=" * 45) + "\n"
-            proc += f"🎯 RESULTADO FINAL DESDE ÁRBOL: {res_total}"
+            tokens_infijos = self.calc.obtener_infija(self.arbol_m6)
+            res_final, pasos = self.calc.evaluar_jerarquia_estricta(tokens_infijos)
+
+            proc = f"🧪 CÓDIGO {tipo.upper()} GENERADO DESDE EL ÁRBOL.\n(Ver detalles en la tabla adjunta).\n\n"
+            proc += "🧮 RESOLUCIÓN MATEMÁTICA (JERARQUÍA ESTRICTA):\n\n"
+            for i, paso in enumerate(pasos):
+                proc += f" Paso {i + 1}: {paso}\n"
+
+            proc += "\n" + ("=" * 45) + f"\n🎯 RESULTADO FINAL: {res_final}"
+
             self.actualizar_texto_resultado(self.area_res6, proc)
 
         except Exception as e:
