@@ -8,6 +8,7 @@ from PyQt6.QtCore import Qt, QTimer
 
 from Logica.Arboles import CalculadoraArbol
 from Logica.Nodo import Nodo
+from Logica.Analizador import AnalizadorLexico #
 
 
 class CompiladorApp(QtWidgets.QMainWindow):
@@ -16,6 +17,8 @@ class CompiladorApp(QtWidgets.QMainWindow):
         uic.loadUi("Gui/interfaz.ui", self)
 
         self.calc = CalculadoraArbol()
+        self.analizador = AnalizadorLexico()  #
+        self.btn_Info.clicked.connect(self.mostrar_estadisticas)
 
 
         # --- CONEXIÓN MÓDULO 1 ---
@@ -81,6 +84,16 @@ class CompiladorApp(QtWidgets.QMainWindow):
         self.btn_infijaANota.clicked.connect(lambda: self.iniciar_animacion_m4("Infija"))
         self.btn_postfijaANota.clicked.connect(lambda: self.iniciar_animacion_m4("Postfija"))
         self.btn_PrefijaANota.clicked.connect(lambda: self.iniciar_animacion_m4("Prefija"))
+
+        # Navegación Módulo 5 (Índice 4)
+        self.btn_Ecodigo.clicked.connect(lambda: self.stackedWidget.setCurrentIndex(4))
+
+        # Botones de Acción
+        self.btn_CuadruplosECodigo.clicked.connect(lambda: self.generar_intermedio("Cuadruplos"))
+        self.btn_expTriplos.clicked.connect(lambda: self.generar_intermedio("Triplos"))
+        self.btn_CodpECod.clicked.connect(lambda: self.generar_intermedio("CodigoP"))
+        self.tab_1.setShowGrid(True)
+
 
     def ejecutar_modulo_1(self, ecuacion):
         """Lógica estable del Módulo 1: Expresión -> Árbol + Resolución Paso a Paso"""
@@ -894,6 +907,109 @@ class CompiladorApp(QtWidgets.QMainWindow):
                     else:
                         elipse.setBrush(QBrush(QColor("#1E1E1E")))
                         txt.setDefaultTextColor(QColor("#FFFFFF"))
+
+    def generar_intermedio(self, tipo):
+        ecuacion = self.inp_ExpCodigo.text().strip()
+        if not ecuacion:
+            QtWidgets.QMessageBox.warning(self, "Aviso", "Escribe una expresión primero.")
+            return
+
+        try:
+            posfija = self.calc.infija_a_posfija(ecuacion)
+            datos = []
+            cabeceras = []
+
+            # Diccionario para guardar los resultados de T0, T1, (0), (1), etc.
+            valores_pasos = {}
+            procedimiento = f"⚙️ PROCEDIMIENTO DETALLADO ({tipo.upper()}):\n\n"
+
+            if tipo == "Cuadruplos":
+                cabeceras = ["ID", "Operador", "Op1", "Op2", "Resultado"]
+                filas = self.calc.generar_cuadruplos(posfija)
+                datos = [[str(i)] + fila for i, fila in enumerate(filas)]
+
+                for i, f in enumerate(filas):
+                    # Obtenemos valores reales (si son temporales, buscamos su valor previo)
+                    v1 = valores_pasos.get(f[1], f[1])
+                    v2 = valores_pasos.get(f[2], f[2])
+                    res_act = self.calc.resolver_operacion_simple(f[0], v1, v2)
+                    valores_pasos[f[3]] = res_act  # Guardamos el valor de T0, T1...
+
+                    procedimiento += f" {i}. El operador '{f[0]}' se aplica a '{f[1]}' y '{f[2]}', guardando en {f[3]}. -> {res_act}\n"
+
+            elif tipo == "Triplos":
+                cabeceras = ["ID", "Operador", "Op1", "Op2"]
+                filas = self.calc.generar_triplos(posfija)
+                datos = [[str(i)] + fila for i, fila in enumerate(filas)]
+
+                for i, f in enumerate(filas):
+                    v1 = valores_pasos.get(f[1], f[1])
+                    v2 = valores_pasos.get(f[2], f[2])
+                    res_act = self.calc.resolver_operacion_simple(f[0], v1, v2)
+                    valores_pasos[f"({i})"] = res_act  # Guardamos el valor del índice (0), (1)...
+
+                    procedimiento += f" {i}. Operación '{f[0]}' entre '{f[1]}' y '{f[2]}'. -> {res_act}\n"
+
+            elif tipo == "CodigoP":
+                cabeceras = ["ID", "Instrucción", "Variable", "-"]
+                filas = self.calc.generar_codigo_p(posfija)
+                datos = [[str(i)] + fila for i, fila in enumerate(filas)]
+                pila_sim = []
+
+                for i, f in enumerate(filas):
+                    if f[0] == "LOD":
+                        pila_sim.append(f[1])
+                        procedimiento += f" {i}. LOD: Carga '{f[1]}' a la pila.\n"
+                    elif f[0] == "STO":
+                        procedimiento += f" {i}. STO: Almacena el resultado en '{f[1]}'.\n"
+                    else:
+                        op2 = pila_sim.pop()
+                        op1 = pila_sim.pop()
+                        simb = {'ADD': '+', 'SUB': '-', 'MUL': '*', 'DIV': '/', 'POW': '^'}.get(f[0], f[0])
+                        res_act = self.calc.resolver_operacion_simple(simb, op1, op2)
+                        pila_sim.append(str(res_act))
+                        procedimiento += f" {i}. {f[0]}: Operación de '{op1}' y '{op2}'. -> {res_act}\n"
+                valores_pasos["final"] = pila_sim[-1] if pila_sim else "0"
+
+            # --- Llenado de Tabla tab_1 ---
+            self.tab_1.setRowCount(len(datos))
+            self.tab_1.setColumnCount(len(cabeceras))
+            self.tab_1.setHorizontalHeaderLabels(cabeceras)
+            header = self.tab_1.horizontalHeader()
+            if len(cabeceras) > 0:
+                # La primera columna (ID) se ajusta al texto
+                header.setSectionResizeMode(0, QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
+                # Las demás se estiran para llenar el resto
+                for i in range(1, len(cabeceras)):
+                    header.setSectionResizeMode(i, QtWidgets.QHeaderView.ResizeMode.Stretch)
+                    
+            for i, fila in enumerate(datos):
+                for j, valor in enumerate(fila):
+                    item = QtWidgets.QTableWidgetItem(str(valor))
+                    item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                    item.setForeground(QBrush(QColor("#FFFFFF")))
+                    self.tab_1.setItem(i, j, item)
+
+            # --- Resultado Final ---
+            res_total = list(valores_pasos.values())[-1]
+            procedimiento += "\n" + ("=" * 45) + "\n"
+            procedimiento += f"🎯 RESULTADO FINAL: {res_total}"
+
+            self.actualizar_texto_resultado(self.area_res5, procedimiento)
+
+        except Exception as e:
+            print(f"Error: {e}")
+
+    def mostrar_estadisticas(self):
+        """Usa el AnalizadorLexico para escanear el proyecto y mostrar los resultados"""
+        try:
+            # Llama al método que lee los archivos .py del proyecto
+            reporte = self.analizador.generar_reporte_codigo_fuente()
+
+            # Lo mostramos en una ventana emergente profesional
+            QtWidgets.QMessageBox.information(self, "Estadísticas del Compilador", reporte)
+        except Exception as e:
+            QtWidgets.QMessageBox.warning(self, "Error", f"No se pudo generar el reporte: {e}")
 
 
 if __name__ == "__main__":

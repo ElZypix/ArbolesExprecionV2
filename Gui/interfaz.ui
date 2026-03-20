@@ -98,6 +98,28 @@
             QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
                 border: none;
                 background: none;
+            }
+QTableWidget {
+                background-color: #1E1E1E;      /* Fondo oscuro */
+                color: #FFFFFF;                 /* Texto blanco puro */
+                gridline-color: #444444;        /* Líneas de la tabla visibles */
+                font-size: 13px;
+                border: 2px solid #6C5CE7;      /* Borde morado alrededor */
+            }
+            QHeaderView::section {
+                background-color: #2D2D2D;      /* Fondo de los encabezados */
+                color: #00E676;                 /* Texto verde neón (ID, Operador, etc) */
+                padding: 6px;
+                border: 1px solid #444444;
+                font-weight: bold;
+                font-size: 14px;
+            }
+            QTableWidget::item {
+                padding: 5px;
+            }
+            QTableWidget::item:selected {
+                background-color: #6C5CE7;      /* Fondo morado al seleccionar */
+                color: #FFFFFF;                 /* Texto blanco al seleccionar */
             }</string>
   </property>
   <widget class="QWidget" name="centralwidget">
@@ -178,6 +200,13 @@
         <widget class="QPushButton" name="btn_ACodigo">
          <property name="text">
           <string>Arbol/codigo</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="btn_Info">
+         <property name="text">
+          <string>Info</string>
          </property>
         </widget>
        </item>
@@ -390,8 +419,8 @@
                   <rect>
                    <x>0</x>
                    <y>0</y>
-                   <width>542</width>
-                   <height>696</height>
+                   <width>100</width>
+                   <height>30</height>
                   </rect>
                  </property>
                 </widget>
@@ -515,8 +544,8 @@
                   <rect>
                    <x>0</x>
                    <y>0</y>
-                   <width>542</width>
-                   <height>671</height>
+                   <width>100</width>
+                   <height>30</height>
                   </rect>
                  </property>
                 </widget>

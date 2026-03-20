@@ -153,3 +153,75 @@ class CalculadoraArbol:
             res.extend(self.obtener_infija(nodo.derecha) + [")"])
 
         return res
+
+    def generar_cuadruplos(self, posfija):
+        cuadruplos = []
+        pila = []
+        temporal_count = 0
+
+        for token in posfija:
+            if self.es_operando(token):
+                pila.append(token)
+            else:
+                op2 = pila.pop()
+                op1 = pila.pop()
+                res = f"T{temporal_count}"
+                # Formato: (Operador, Op1, Op2, Resultado)
+                cuadruplos.append([token, op1, op2, res])
+                pila.append(res)
+                temporal_count += 1
+        return cuadruplos
+
+    def generar_triplos(self, posfija):
+        triplos = []
+        pila = []
+        indice = 0
+
+        for token in posfija:
+            if self.es_operando(token):
+                pila.append(token)
+            else:
+                op2 = pila.pop()
+                op1 = pila.pop()
+                # Formato: (Operador, Op1, Op2) -> El resultado es el índice de la fila
+                triplos.append([token, op1, op2])
+                pila.append(f"({indice})")
+                indice += 1
+        return triplos
+
+    def generar_codigo_p(self, posfija):
+        codigo_p = []
+        pila = []
+        temp_count = 0
+
+        for token in posfija:
+            if self.es_operando(token):
+                codigo_p.append(["LOD", token, "-", "-"])
+                pila.append(token)
+            else:
+                op2 = pila.pop()
+                op1 = pila.pop()
+                instruccion = {
+                    '+': 'ADD', '-': 'SUB', '*': 'MUL', '/': 'DIV', '^': 'POW'
+                }.get(token, 'OP')
+
+                res = f"T{temp_count}"
+                codigo_p.append([instruccion, "-", "-", "-"])
+                codigo_p.append(["STO", res, "-", "-"])
+                pila.append(res)
+                temp_count += 1
+        return codigo_p
+
+    def resolver_operacion_simple(self, op, val1, val2):
+        """Resuelve una operación simple entre dos valores (pueden ser números o letras)"""
+        try:
+            # Intentar resolver como números
+            n1, n2 = float(val1), float(val2)
+            if op == '+': return n1 + n2
+            if op == '-': return n1 - n2
+            if op == '*': return n1 * n2
+            if op == '/': return n1 / n2 if n2 != 0 else "Error"
+            if op == '^': return n1 ** n2
+        except:
+            # Si hay letras, devolver simplificado
+            return f"({val1}{op}{val2})"
