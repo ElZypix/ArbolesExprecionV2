@@ -135,3 +135,21 @@ class CalculadoraArbol:
             raise ValueError(f"Error en '{op}': {str(e)}")
 
         return res, pasos_izq + pasos_der + [paso_texto]
+
+    def obtener_infija(self, nodo):
+        """Recorre el árbol y extrae la expresión matemática con paréntesis"""
+        if not nodo: return []
+        # Si es una hoja (número o letra), solo la devuelve
+        if not nodo.izquierda and not nodo.derecha:
+            return [str(nodo.valor)]
+
+        res = []
+        if nodo.izquierda:
+            res.extend(["("] + self.obtener_infija(nodo.izquierda))
+
+        res.append(str(nodo.valor))
+
+        if nodo.derecha:
+            res.extend(self.obtener_infija(nodo.derecha) + [")"])
+
+        return res
