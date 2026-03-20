@@ -225,3 +225,18 @@ class CalculadoraArbol:
         except:
             # Si hay letras, devolver simplificado
             return f"({val1}{op}{val2})"
+
+    def obtener_posfija(self, nodo, resultado=None):
+        """Recorrido Post-orden: Izquierda -> Derecha -> Raíz"""
+        if resultado is None:
+            resultado = []
+
+        if nodo:
+            # 1. Primero visitamos todo el subárbol izquierdo
+            self.obtener_posfija(nodo.izquierda, resultado)
+            # 2. Luego todo el subárbol derecho
+            self.obtener_posfija(nodo.derecha, resultado)
+            # 3. Al final guardamos el valor de la raíz
+            resultado.append(str(nodo.valor))
+
+        return resultado

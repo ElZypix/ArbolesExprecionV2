@@ -94,6 +94,30 @@ class CompiladorApp(QtWidgets.QMainWindow):
         self.btn_CodpECod.clicked.connect(lambda: self.generar_intermedio("CodigoP"))
         self.tab_1.setShowGrid(True)
 
+        # ==========================================
+        # VARIABLES Y CONEXIONES MÓDULO 6
+        # ==========================================
+        self.arbol_m6 = None
+        self.nodo_sel_m6 = None
+        self.mapa_items_m6 = {}
+
+        # Navegación al Módulo 6 (Asumiendo índice 5 en el stacked principal)
+        self.btn_ACodigo.clicked.connect(lambda: self.stackedWidget.setCurrentIndex(5))
+
+        # Botones de construcción del árbol
+        self.btn_AgregarACode.clicked.connect(self.agregar_nodo_m6)
+        self.btn_EliminarACode.clicked.connect(self.eliminar_nodo_m6)
+        self.btn_LimpiarACode.clicked.connect(self.limpiar_arbol_m6)
+
+        # Botones de código intermedio (Cambian el stackedWidget interno al índice 1)
+        self.btn_CuadruplosACode.clicked.connect(lambda: self.generar_m6("Cuadruplos"))
+        self.btn_TriplosACode.clicked.connect(lambda: self.generar_m6("Triplos"))
+        self.btn_CodePACode.clicked.connect(lambda: self.generar_m6("CodigoP"))
+
+        # Input de validación y tecla Enter para el Módulo 6
+        self.int_NodoACode.textChanged.connect(self.validar_input_m6)
+        self.int_NodoACode.returnPressed.connect(self.agregar_nodo_m6)
+
 
     def ejecutar_modulo_1(self, ecuacion):
         """Lógica estable del Módulo 1: Expresión -> Árbol + Resolución Paso a Paso"""
@@ -982,7 +1006,7 @@ class CompiladorApp(QtWidgets.QMainWindow):
                 # Las demás se estiran para llenar el resto
                 for i in range(1, len(cabeceras)):
                     header.setSectionResizeMode(i, QtWidgets.QHeaderView.ResizeMode.Stretch)
-                    
+
             for i, fila in enumerate(datos):
                 for j, valor in enumerate(fila):
                     item = QtWidgets.QTableWidgetItem(str(valor))
@@ -1010,6 +1034,200 @@ class CompiladorApp(QtWidgets.QMainWindow):
             QtWidgets.QMessageBox.information(self, "Estadísticas del Compilador", reporte)
         except Exception as e:
             QtWidgets.QMessageBox.warning(self, "Error", f"No se pudo generar el reporte: {e}")
+
+    #modulo 6
+    def agregar_nodo_m6(self):
+        # Si la tabla estaba visible, regresamos al árbol para seguir editando
+        self.stackedWidget_2.setCurrentIndex(0)  # stackedWidget interno
+
+        valor = self.int_NodoACode.text().strip()  # <--- Verifica este nombre
+        if not valor: return
+
+        if self.arbol_m6 is None:
+            if not (valor in self.calc.preferencia or valor == '√'):
+                QtWidgets.QMessageBox.warning(self, "Error", "La raíz debe ser un operador.")
+                return
+            self.arbol_m6 = Nodo(valor)
+            self.nodo_sel_m6 = self.arbol_m6
+        elif self.nodo_sel_m6:
+            if self.calc.es_operando(self.nodo_sel_m6.valor):
+                QtWidgets.QMessageBox.warning(self, "Error", "Las hojas no tienen hijos.")
+                return
+            if self.nodo_sel_m6.izquierda is None:
+                self.nodo_sel_m6.izquierda = Nodo(valor)
+            elif self.nodo_sel_m6.derecha is None:
+                self.nodo_sel_m6.derecha = Nodo(valor)
+
+        self.int_NodoACode.clear()
+        self.actualizar_vistas_m6()
+
+    def eliminar_nodo_m6(self):
+        if self.nodo_sel_m6 and self.arbol_m6:
+            if self.nodo_sel_m6 == self.arbol_m6:
+                self.arbol_m6 = None
+            else:
+                self.eliminar_referencia(self.arbol_m6, self.nodo_sel_m6)
+            self.nodo_sel_m6 = None
+            self.actualizar_vistas_m6()
+
+    def limpiar_arbol_m6(self):
+        self.arbol_m6 = None
+        self.nodo_sel_m6 = None
+        self.actualizar_vistas_m6()
+        self.stackedWidget_2.setCurrentIndex(0)
+
+    def actualizar_vistas_m6(self):
+        escena = QGraphicsScene(self)
+        self.grap_Arbol4.setScene(escena)
+        self.mapa_items_m6 = {}
+        if self.arbol_m6:
+            prof = self.obtener_profundidad(self.arbol_m6)
+            dx = 35 * (2 ** (prof - 2)) if prof > 1 else 0
+            self.dibujar_nodo_m6(self.arbol_m6, escena, 0, 0, dx)
+            escena.selectionChanged.connect(self.al_seleccionar_m6)
+
+    def dibujar_nodo_m6(self, nodo, escena, x, y, dx):
+        from PyQt6.QtWidgets import QGraphicsItem
+        if not nodo: return
+        radio = 18
+        if nodo.izquierda:
+            escena.addLine(x, y, x - dx, y + 50, QPen(QColor("#6C5CE7"), 2))
+            self.dibujar_nodo_m6(nodo.izquierda, escena, x - dx, y + 50, dx / 2)
+        if nodo.derecha:
+            escena.addLine(x, y, x + dx, y + 50, QPen(QColor("#6C5CE7"), 2))
+            self.dibujar_nodo_m6(nodo.derecha, escena, x + dx, y + 50, dx / 2)
+
+        elipse = escena.addEllipse(x - radio, y - radio, radio * 2, radio * 2, QPen(Qt.GlobalColor.white))
+        sel = (nodo == self.nodo_sel_m6)
+        elipse.setBrush(QBrush(QColor("#00E676" if sel else "#1E1E1E")))
+        elipse.setFlags(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable)
+        txt = escena.addText(str(nodo.valor), QFont("Arial", 10, QFont.Weight.Bold))
+        txt.setDefaultTextColor(QColor("#000000" if sel else "#FFFFFF"))
+        txt.setPos(x - txt.boundingRect().width() / 2, y - txt.boundingRect().height() / 2)
+        self.mapa_items_m6[elipse] = (nodo, txt)
+
+    def al_seleccionar_m6(self):
+        if not self.grap_Arbol4.scene(): return
+        items = self.grap_Arbol4.scene().selectedItems()
+        if items:
+            datos = self.mapa_items_m6.get(items[0])
+            if datos:
+                self.nodo_sel_m6 = datos[0]
+                for elipse, (n, t) in self.mapa_items_m6.items():
+                    sel = (n == self.nodo_sel_m6)
+                    elipse.setBrush(QBrush(QColor("#00E676" if sel else "#1E1E1E")))
+                    t.setDefaultTextColor(QColor("#000000" if sel else "#FFFFFF"))
+
+    def generar_m6(self, tipo):
+        """Genera el código intermedio (Cuadruplos, Triplos o Código P) desde el Árbol Manual"""
+        if not self.arbol_m6:
+            QtWidgets.QMessageBox.warning(self, "Aviso", "Primero construye el árbol en el canvas.")
+            return
+
+        # Cambiamos a la vista de tabla en el stackedWidget_2 (página 1)
+        self.stackedWidget_2.setCurrentIndex(1)
+
+        try:
+            # 1. Obtenemos la posfija directamente del árbol construido
+            posfija = self.calc.obtener_posfija(self.arbol_m6)
+
+            datos = []
+            cabeceras = []
+            valores_pasos = {}
+            proc = f"🧪 RESOLUCIÓN DESDE EL ÁRBOL ({tipo.upper()}):\n\n"
+
+            # --- LÓGICA DE CUADRUPLOS ---
+            if tipo == "Cuadruplos":
+                cabeceras = ["ID", "Operador", "Op1", "Op2", "Resultado"]
+                filas = self.calc.generar_cuadruplos(posfija)
+                for i, f in enumerate(filas):
+                    v1 = valores_pasos.get(f[1], f[1])
+                    v2 = valores_pasos.get(f[2], f[2])
+                    res = self.calc.resolver_operacion_simple(f[0], v1, v2)
+                    valores_pasos[f[3]] = res
+                    datos.append([str(i), f[0], f[1], f[2], f[3]])
+                    proc += f" {i}. Se aplica '{f[0]}' a '{f[1]}' y '{f[2]}', guardando en {f[3]}. -> {res}\n"
+
+            # --- LÓGICA DE TRIPLOS ---
+            elif tipo == "Triplos":
+                cabeceras = ["ID", "Operador", "Op1", "Op2"]
+                filas = self.calc.generar_triplos(posfija)
+                for i, f in enumerate(filas):
+                    v1 = valores_pasos.get(f[1], f[1])
+                    v2 = valores_pasos.get(f[2], f[2])
+                    res = self.calc.resolver_operacion_simple(f[0], v1, v2)
+                    valores_pasos[f"({i})"] = res  # Los triplos se referencian por su ID entre paréntesis
+                    datos.append([str(i), f[0], f[1], f[2]])
+                    proc += f" {i}. Operación '{f[0]}' entre '{f[1]}' y '{f[2]}'. -> {res}\n"
+
+            # --- LÓGICA DE CÓDIGO P ---
+            elif tipo == "CodigoP":
+                cabeceras = ["ID", "Instrucción", "Variable", "-"]
+                filas = self.calc.generar_codigo_p(posfija)
+                pila_sim = []
+                for i, f in enumerate(filas):
+                    if f[0] == "LOD":
+                        pila_sim.append(f[1])
+                        proc += f" {i}. LOD: Carga '{f[1]}' a la pila.\n"
+                    elif f[0] == "STO":
+                        proc += f" {i}. STO: Almacena resultado en '{f[1]}'.\n"
+                    else:
+                        op2 = pila_sim.pop()
+                        op1 = pila_sim.pop()
+                        simb = {'ADD': '+', 'SUB': '-', 'MUL': '*', 'DIV': '/', 'POW': '^'}.get(f[0], f[0])
+                        res = self.calc.resolver_operacion_simple(simb, op1, op2)
+                        pila_sim.append(str(res))
+                        proc += f" {i}. {f[0]}: Operación '{op1}' {simb} '{op2}'. -> {res}\n"
+                    datos.append([str(i), f[0], f[1], "-"])
+                valores_pasos["final"] = pila_sim[-1] if pila_sim else "0"
+
+            # 2. Configuración y Llenado de la Tabla tab_2
+            self.tab_2.setRowCount(len(datos))
+            self.tab_2.setColumnCount(len(cabeceras))
+            self.tab_2.setHorizontalHeaderLabels(cabeceras)
+
+            # Ajuste de ancho de columnas
+            header = self.tab_2.horizontalHeader()
+            if len(cabeceras) > 0:
+                header.setSectionResizeMode(0, QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
+                for j in range(1, len(cabeceras)):
+                    header.setSectionResizeMode(j, QtWidgets.QHeaderView.ResizeMode.Stretch)
+
+            for i, fila in enumerate(datos):
+                for j, val in enumerate(fila):
+                    item = QtWidgets.QTableWidgetItem(str(val))
+                    item.setForeground(QBrush(QColor("#FFFFFF")))
+                    item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                    self.tab_2.setItem(i, j, item)
+
+            # 3. Mostrar el Resultado Final en el panel
+            res_total = list(valores_pasos.values())[-1]
+            proc += "\n" + ("=" * 45) + "\n"
+            proc += f"🎯 RESULTADO FINAL DESDE ÁRBOL: {res_total}"
+            self.actualizar_texto_resultado(self.area_res6, proc)
+
+        except Exception as e:
+            QtWidgets.QMessageBox.critical(self, "Error", f"Fallo al generar código: {e}")
+
+    def validar_input_m6(self, texto):
+        """Vigila lo que escribe el usuario en el Módulo 6 y bloquea errores"""
+        if not texto: return
+        char_actual = texto[-1]
+
+        self.int_NodoACode.blockSignals(True)
+
+        if char_actual in self.calc.preferencia or char_actual == '√':
+            if len(texto) > 1: self.int_NodoACode.setText(char_actual)
+        elif char_actual.isalpha():
+            if len(texto) > 1: self.int_NodoACode.setText(char_actual)
+            if char_actual.islower(): self.int_NodoACode.setText(char_actual.upper())
+        elif char_actual.isdigit():
+            solo_numeros = "".join(filter(str.isdigit, texto))
+            self.int_NodoACode.setText(solo_numeros)
+        else:
+            self.int_NodoACode.setText(texto[:-1])
+
+        self.int_NodoACode.blockSignals(False)
 
 
 if __name__ == "__main__":

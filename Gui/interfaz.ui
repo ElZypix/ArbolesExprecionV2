@@ -419,8 +419,8 @@ QTableWidget {
                   <rect>
                    <x>0</x>
                    <y>0</y>
-                   <width>100</width>
-                   <height>30</height>
+                   <width>542</width>
+                   <height>696</height>
                   </rect>
                  </property>
                 </widget>
@@ -544,8 +544,8 @@ QTableWidget {
                   <rect>
                    <x>0</x>
                    <y>0</y>
-                   <width>100</width>
-                   <height>30</height>
+                   <width>542</width>
+                   <height>671</height>
                   </rect>
                  </property>
                 </widget>
@@ -680,8 +680,8 @@ QTableWidget {
                   <rect>
                    <x>0</x>
                    <y>0</y>
-                   <width>100</width>
-                   <height>30</height>
+                   <width>542</width>
+                   <height>631</height>
                   </rect>
                  </property>
                 </widget>
@@ -824,8 +824,8 @@ QTableWidget {
                   <rect>
                    <x>0</x>
                    <y>0</y>
-                   <width>100</width>
-                   <height>30</height>
+                   <width>542</width>
+                   <height>671</height>
                   </rect>
                  </property>
                 </widget>
@@ -916,7 +916,7 @@ QTableWidget {
                   </widget>
                  </item>
                  <item>
-                  <widget class="QLineEdit" name="inp_ACode"/>
+                  <widget class="QLineEdit" name="int_NodoACode"/>
                  </item>
                  <item>
                   <widget class="QLabel" name="label_19">
@@ -992,8 +992,8 @@ QTableWidget {
                      <rect>
                       <x>0</x>
                       <y>0</y>
-                      <width>100</width>
-                      <height>30</height>
+                      <width>542</width>
+                      <height>581</height>
                      </rect>
                     </property>
                    </widget>
