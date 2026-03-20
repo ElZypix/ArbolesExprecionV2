@@ -390,8 +390,8 @@
                   <rect>
                    <x>0</x>
                    <y>0</y>
-                   <width>100</width>
-                   <height>30</height>
+                   <width>542</width>
+                   <height>696</height>
                   </rect>
                  </property>
                 </widget>
@@ -503,8 +503,8 @@
                <widget class="QScrollArea" name="area_res3">
                 <property name="maximumSize">
                  <size>
-                  <width>300</width>
-                  <height>300</height>
+                  <width>16000</width>
+                  <height>16000</height>
                  </size>
                 </property>
                 <property name="widgetResizable">
@@ -515,8 +515,8 @@
                   <rect>
                    <x>0</x>
                    <y>0</y>
-                   <width>100</width>
-                   <height>30</height>
+                   <width>542</width>
+                   <height>671</height>
                   </rect>
                  </property>
                 </widget>
@@ -639,8 +639,8 @@
                <widget class="QScrollArea" name="area_res4">
                 <property name="maximumSize">
                  <size>
-                  <width>300</width>
-                  <height>300</height>
+                  <width>16000</width>
+                  <height>16000</height>
                  </size>
                 </property>
                 <property name="widgetResizable">

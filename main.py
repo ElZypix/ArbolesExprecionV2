@@ -1,8 +1,10 @@
 import sys
+import re
 from PyQt6 import QtWidgets, uic
 from PyQt6.QtWidgets import QGraphicsScene, QLabel
 from PyQt6.QtGui import QPen, QBrush, QColor, QFont
 from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QTimer
 
 from Logica.Arboles import CalculadoraArbol
 from Logica.Nodo import Nodo
@@ -36,6 +38,29 @@ class CompiladorApp(QtWidgets.QMainWindow):
         self.btn_limpiarAexp.clicked.connect(self.limpiar_arbol_manual)
         self.inp_nod.textChanged.connect(self.validar_input_manual)
         self.inp_nod.returnPressed.connect(self.agregar_nodo_manual)
+
+        # ==========================================
+        # VARIABLES Y CONEXIONES MÓDULO 3
+        # ==========================================
+        # Navegación
+        self.btn_ENotacion.clicked.connect(lambda: self.stackedWidget.setCurrentIndex(2))
+
+        # Motor de animación
+        self.timer_animacion = QTimer()
+        self.timer_animacion.timeout.connect(self.ejecutar_paso_animacion)
+
+        # Variables de estado para las 3 pilas
+        self.estado_animacion = {
+            "entrada": [],
+            "pila_operadores": [],
+            "salida": [],
+            "paso_actual": 0
+        }
+
+        # Conectar botones de Módulo 3 (Verifica que estos sean los nombres en tu .ui)
+        self.pushButton_12.clicked.connect(lambda: self.iniciar_animacion_m3("Prefija"))
+        self.pushButton_10.clicked.connect(lambda: self.iniciar_animacion_m3("Infija"))
+        self.pushButton_11.clicked.connect(lambda: self.iniciar_animacion_m3("Postfija"))
 
     def ejecutar_modulo_1(self, ecuacion):
         """Lógica estable del Módulo 1: Expresión -> Árbol + Resolución Paso a Paso"""
@@ -287,6 +312,278 @@ class CompiladorApp(QtWidgets.QMainWindow):
                     else:
                         elipse.setBrush(QBrush(QColor("#1E1E1E")))  # Fondo Gris
                         txt.setDefaultTextColor(QColor("#FFFFFF"))  # Texto Blanco
+
+        # ==========================================
+        # LÓGICA MÓDULO 3 (Animación + Procedimientos + Conversión Inversa)
+        # ==========================================
+    def iniciar_animacion_m3(self, tipo_notacion):
+        ecuacion = self.lineEdit_3.text().strip()
+        if not ecuacion:
+            QtWidgets.QMessageBox.warning(self, "Aviso", "Por favor, escribe una expresión primero.")
+            return
+
+        tokens = re.findall(r"([a-zA-Z]+|\d+(?:\.\d+)?|[/√+*^()-])", ecuacion)
+
+        # ==========================================
+        # NUEVO: RESOLUCIÓN MATEMÁTICA Y SIMPLIFICACIÓN
+        # ==========================================
+        try:
+            # Usamos el cerebro del Módulo 1 para resolver la ecuación silenciosamente
+            posfija_temp = self.calc.infija_a_posfija(ecuacion)
+            arbol_temp = self.calc.construir_arbol(posfija_temp)
+            res_eval, pasos_eval = self.calc.evaluar_con_pasos(arbol_temp)
+
+            self.resolucion_m3 = "🧮 RESOLUCIÓN MATEMÁTICA Y SIMPLIFICACIÓN:\n"
+            if pasos_eval:
+                self.resolucion_m3 += "\n".join(pasos_eval)
+            else:
+                self.resolucion_m3 += "   (Sin operaciones pendientes)"
+            self.resolucion_m3 += f"\n\n🎯 RESULTADO FINAL: {res_eval}"
+        except Exception:
+            self.resolucion_m3 = "🧮 RESOLUCIÓN MATEMÁTICA:\n   (No se pudo evaluar matemáticamente)"
+        # ==========================================
+
+        self.frames_animacion = []
+        if tipo_notacion == "Postfija":
+            self.frames_animacion = self.generar_frames_postfija(tokens)
+        elif tipo_notacion == "Prefija":
+            self.frames_animacion = self.generar_frames_prefija(tokens)
+        elif tipo_notacion == "Infija":
+            self.frames_animacion = self.generar_frames_infija_inteligente(tokens)
+
+        if not self.frames_animacion: return
+
+        self.pushButton_12.setEnabled(False)
+        self.pushButton_10.setEnabled(False)
+        self.pushButton_11.setEnabled(False)
+        self.timer_animacion.start(800)
+
+    def ejecutar_paso_animacion(self):
+        if not self.frames_animacion:
+            self.timer_animacion.stop()
+            self.pushButton_12.setEnabled(True)
+            self.pushButton_10.setEnabled(True)
+            self.pushButton_11.setEnabled(True)
+            return
+
+        estado_actual = self.frames_animacion.pop(0)
+        self.dibujar_estado_pilas(estado_actual)
+
+    def dibujar_estado_pilas(self, estado):
+        """Dibuja las columnas gráficas y manda el texto al panel de Procedimientos"""
+        escena = QGraphicsScene(self)
+        self.graphicsView_3.setScene(escena)
+
+        fuente_titulo = QFont("Arial", 12, QFont.Weight.Bold)
+        fuente_item = QFont("Consolas", 14, QFont.Weight.Bold)
+        pen_borde = QPen(QColor("#6C5CE7"), 2)
+        brush_caja = QBrush(QColor("#1E1E1E"))
+        brush_pila = QBrush(QColor("#00E676"))
+
+        # --- COLUMNA 1: ENTRADA ---
+        t1 = escena.addText("ENTRADA", fuente_titulo)
+        t1.setDefaultTextColor(Qt.GlobalColor.white)
+        t1.setPos(50, 20)
+
+        y_offset = 60
+        for token in estado["entrada"]:
+            escena.addRect(50, y_offset, 80, 30, pen_borde, brush_caja)
+            txt = escena.addText(token, fuente_item)
+            txt.setDefaultTextColor(Qt.GlobalColor.white)
+            txt.setPos(80, y_offset + 2)
+            y_offset += 40
+
+        # --- COLUMNA 2: PILA DE OPERADORES ---
+        t2 = escena.addText("PILA (Memoria)", fuente_titulo)
+        t2.setDefaultTextColor(Qt.GlobalColor.white)
+        t2.setPos(220, 20)
+
+        y_base = 350
+        for token in estado["pila_operadores"]:
+            escena.addRect(230, y_base, 100, 30, pen_borde, brush_pila)
+            txt = escena.addText(token, fuente_item)
+            txt.setDefaultTextColor(Qt.GlobalColor.black)
+            txt.setPos(240, y_base + 2)
+            y_base -= 40
+
+            # --- COLUMNA 3: SALIDA ---
+        t3 = escena.addText("SALIDA", fuente_titulo)
+        t3.setDefaultTextColor(Qt.GlobalColor.white)
+        t3.setPos(400, 20)
+
+        y_offset = 60
+        for token in estado["salida"]:
+            escena.addRect(420, y_offset, 150, 30, pen_borde, brush_caja)
+            txt = escena.addText(token, fuente_item)
+            txt.setDefaultTextColor(Qt.GlobalColor.white)
+            txt.setPos(430, y_offset + 2)
+            y_offset += 40
+
+        # ==========================================
+        # CONSTRUCCIÓN DEL TEXTO DEL PANEL (Shunting Yard + Matemáticas)
+        # ==========================================
+        proc = "⚙️ CONVERSIÓN DE NOTACIÓN (PILAS):\n\n" + estado.get("log", "")
+
+        # Le pegamos la resolución matemática que calculamos en iniciar_animacion_m3
+        if hasattr(self, 'resolucion_m3'):
+            proc += "\n\n" + ("=" * 40) + "\n\n" + self.resolucion_m3
+
+        try:
+            self.actualizar_texto_resultado(self.area_res3, proc)
+        except AttributeError:
+            pass
+
+    # ==========================================
+    # ALGORITMOS CON REGISTRO DE PROCEDIMIENTOS
+    # ==========================================
+    def generar_frames_postfija(self, tokens):
+        frames = []
+        entrada = list(tokens)
+        pila = []
+        salida = []
+        log = "Iniciando Shunting Yard (Infija -> Postfija)\n"
+
+        def tomar_foto(mensaje=""):
+            nonlocal log
+            if mensaje: log += " > " + mensaje + "\n"
+            frames.append({"entrada": list(entrada), "pila_operadores": list(pila), "salida": list(salida), "log": log})
+
+        tomar_foto()
+
+        for token in tokens:
+            entrada.pop(0)
+            if self.calc.es_operando(token):
+                salida.append(token)
+                tomar_foto(f"El operando '{token}' pasa directo a la salida.")
+            elif token == '(':
+                pila.append(token)
+                tomar_foto("Se abre paréntesis, entra a la pila.")
+            elif token == ')':
+                while pila and pila[-1] != '(':
+                    salida.append(pila.pop())
+                    tomar_foto("Se vacía la pila hasta el paréntesis.")
+                if pila: pila.pop()
+            else:
+                while (pila and pila[-1] != '(' and
+                       self.calc.preferencia.get(pila[-1], 0) >= self.calc.preferencia.get(token, 0)):
+                    salida.append(pila.pop())
+                    tomar_foto(f"Sale operador por jerarquía.")
+                pila.append(token)
+                tomar_foto(f"Operador '{token}' entra a la pila.")
+
+        while pila:
+            salida.append(pila.pop())
+            tomar_foto("Vaciando restos de la pila.")
+
+        return frames
+
+    def generar_frames_prefija(self, tokens):
+        frames = []
+        entrada = list(tokens[::-1])
+        for i in range(len(entrada)):
+            if entrada[i] == '(': entrada[i] = ')'
+            elif entrada[i] == ')': entrada[i] = '('
+
+        pila = []
+        salida = []
+        log = "Iniciando Shunting Yard Inverso (Infija -> Prefija)\nSe lee de Derecha a Izquierda.\n"
+
+        def tomar_foto(mensaje=""):
+            nonlocal log
+            if mensaje: log += " > " + mensaje + "\n"
+            frames.append({
+                "entrada": list(entrada[::-1]),
+                "pila_operadores": list(pila),
+                "salida": list(salida[::-1]),
+                "log": log
+            })
+
+        tomar_foto()
+
+        for token in list(entrada):
+            entrada.pop(0)
+            if self.calc.es_operando(token):
+                salida.append(token)
+                tomar_foto(f"Operando '{token}' a la salida.")
+            elif token == '(':
+                pila.append(token)
+            elif token == ')':
+                while pila and pila[-1] != '(': salida.append(pila.pop())
+                if pila: pila.pop()
+            else:
+                while (pila and pila[-1] != '(' and
+                       self.calc.preferencia.get(pila[-1], 0) > self.calc.preferencia.get(token, 0)):
+                    salida.append(pila.pop())
+                pila.append(token)
+                tomar_foto(f"Operador '{token}' a la pila.")
+
+        while pila: salida.append(pila.pop())
+        tomar_foto("Se invierte el resultado final.")
+        return frames
+
+    def generar_frames_infija_inteligente(self, tokens):
+        """Detecta si el usuario escribió Postfija/Prefija y la convierte a Infija resolviéndola con Pilas"""
+        frames = []
+        entrada = list(tokens)
+        pila = []
+        salida = []
+        log = ""
+
+        # Detección heurística básica
+        es_prefija = tokens[0] in self.calc.preferencia if tokens else False
+        es_postfija = tokens[-1] in self.calc.preferencia if tokens else False
+
+        def tomar_foto(mensaje=""):
+            nonlocal log
+            if mensaje: log += " > " + mensaje + "\n"
+            frames.append({"entrada": list(entrada), "pila_operadores": list(pila), "salida": list(salida), "log": log})
+
+        if es_postfija:
+            log = "🧠 Detectada Notación POSTFIJA (Se evalúa de Izq a Der)\nConvirtiendo a Infija...\n"
+            tomar_foto()
+            for token in tokens:
+                entrada.pop(0)
+                if self.calc.es_operando(token):
+                    pila.append(token)
+                    tomar_foto(f"Apilando operando: {token}")
+                else:
+                    if len(pila) >= 2:
+                        op2 = pila.pop()
+                        op1 = pila.pop()
+                        nuevo = f"({op1} {token} {op2})"
+                        pila.append(nuevo)
+                        tomar_foto(f"Aplicar '{token}': Uniendo {op1} y {op2} ➔ {nuevo}")
+            if pila: salida.append(pila.pop())
+            tomar_foto("Conversión finalizada.")
+
+        elif es_prefija:
+            log = "🧠 Detectada Notación PREFIJA (Se evalúa de Der a Izq)\nConvirtiendo a Infija...\n"
+            entrada = list(tokens[::-1]) # Volteamos para la animación
+            tomar_foto()
+            for token in reversed(tokens):
+                entrada.pop(0)
+                if self.calc.es_operando(token):
+                    pila.append(token)
+                    tomar_foto(f"Apilando operando: {token}")
+                else:
+                    if len(pila) >= 2:
+                        op1 = pila.pop()
+                        op2 = pila.pop()
+                        nuevo = f"({op1} {token} {op2})"
+                        pila.append(nuevo)
+                        tomar_foto(f"Aplicar '{token}': Uniendo {op1} y {op2} ➔ {nuevo}")
+            if pila: salida.append(pila.pop())
+            tomar_foto("Conversión finalizada.")
+
+        else:
+            log = "La expresión ya está en INFIJA normal.\n"
+            tomar_foto()
+            for token in tokens:
+                entrada.pop(0)
+                salida.append(token)
+                tomar_foto()
+
+        return frames
 
 
 if __name__ == "__main__":
