@@ -13,6 +13,93 @@
   <property name="windowTitle">
    <string>MainWindow</string>
   </property>
+  <property name="styleSheet">
+   <string notr="true">/* FONDO PRINCIPAL */
+            QMainWindow {
+                background-color: #0D0D12;
+            }
+
+            /* PANELES Y CONTENEDORES */
+            QFrame, QStackedWidget {
+                background-color: #16161E;
+                border-radius: 10px;
+            }
+
+            /* BOTONES MODERNOS */
+            QPushButton {
+                background-color: #6C5CE7;
+                color: #FFFFFF;
+                border: none;
+                border-radius: 6px;
+                padding: 10px 15px;
+                font-size: 13px;
+                font-weight: bold;
+                font-family: &quot;Segoe UI&quot;, Arial;
+            }
+            QPushButton:hover {
+                background-color: #8375FF;
+            }
+            QPushButton:pressed {
+                background-color: #5A48D2;
+            }
+
+            /* CAJAS DE TEXTO (INPUTS) */
+            QLineEdit {
+                background-color: #20202B;
+                color: #00E676;
+                border: 2px solid #2D2D3D;
+                border-radius: 6px;
+                padding: 8px;
+                font-size: 14px;
+                font-family: &quot;Consolas&quot;, monospace;
+                font-weight: bold;
+            }
+            QLineEdit:focus {
+                border: 2px solid #6C5CE7;
+            }
+
+            /* TEXTOS Y ETIQUETAS */
+            QLabel {
+                color: #C0C0D0;
+                font-size: 14px;
+                font-family: &quot;Segoe UI&quot;, Arial;
+            }
+
+            /* PIZARRÓN DE DIBUJO (CANVAS) */
+            QGraphicsView {
+                background-color: #0A0A0E;
+                border: 2px dashed #2D2D3D;
+                border-radius: 8px;
+            }
+
+            /* ÁREAS DE SCROLL (PROCEDIMIENTOS) */
+            QScrollArea {
+                border: none;
+                background-color: transparent;
+            }
+            QScrollArea &gt; QWidget &gt; QWidget {
+                background-color: transparent;
+            }
+
+            /* BARRAS DE DESPLAZAMIENTO FINAS Y MODERNAS */
+            QScrollBar:vertical {
+                border: none;
+                background: #16161E;
+                width: 8px;
+                border-radius: 4px;
+            }
+            QScrollBar::handle:vertical {
+                background: #6C5CE7;
+                border-radius: 4px;
+            }
+            QScrollBar::handle:vertical:hover {
+                background: #8375FF;
+            }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                border: none;
+                background: none;
+            }</string>
+  </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QHBoxLayout" name="horizontalLayout" stretch="1,4">
     <property name="spacing">
@@ -185,8 +272,8 @@
                   <rect>
                    <x>0</x>
                    <y>0</y>
-                   <width>298</width>
-                   <height>298</height>
+                   <width>300</width>
+                   <height>300</height>
                   </rect>
                  </property>
                 </widget>
@@ -297,8 +384,8 @@
                   <rect>
                    <x>0</x>
                    <y>0</y>
-                   <width>375</width>
-                   <height>527</height>
+                   <width>100</width>
+                   <height>30</height>
                   </rect>
                  </property>
                 </widget>
@@ -422,8 +509,8 @@
                   <rect>
                    <x>0</x>
                    <y>0</y>
-                   <width>298</width>
-                   <height>298</height>
+                   <width>100</width>
+                   <height>30</height>
                   </rect>
                  </property>
                 </widget>
@@ -558,8 +645,8 @@
                   <rect>
                    <x>0</x>
                    <y>0</y>
-                   <width>298</width>
-                   <height>298</height>
+                   <width>100</width>
+                   <height>30</height>
                   </rect>
                  </property>
                 </widget>
@@ -702,8 +789,8 @@
                   <rect>
                    <x>0</x>
                    <y>0</y>
-                   <width>98</width>
-                   <height>28</height>
+                   <width>100</width>
+                   <height>30</height>
                   </rect>
                  </property>
                 </widget>
@@ -870,8 +957,8 @@
                      <rect>
                       <x>0</x>
                       <y>0</y>
-                      <width>98</width>
-                      <height>28</height>
+                      <width>100</width>
+                      <height>30</height>
                      </rect>
                     </property>
                    </widget>
